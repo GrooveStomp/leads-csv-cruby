@@ -1,41 +1,20 @@
 require 'sinatra'
-require 'jdbc/mysql'
-require 'java'
 require 'json'
 require 'csv'
+require 'mysql'
 
-Java::com.mysql.jdbc.Driver
-
-class Database
-  def initialize(db, host, username, password)
-    url = "jdbc:mysql://#{host}/#{db}"
-    @connection = java.sql.DriverManager.get_connection(url, username, password)
-  end
-
-  def query(string)
-    statement = @connection.create_statement
-    statement.execute_query(string)
-  end
+def db(db, host, username, password, socket)
+  mysql = Mysql.init()
+  mysql.connect(host, username, password, db, 3306, socket)
+  mysql
 end
 
 def leads_from_database(page_id)
-  db = Database.new('lp_webapp', 'localhost', 'root', 'password')
-  result_set = db.query("SELECT * from form_submissions where page_uuid = '#{page_id}'")
+  my = db('lp_webapp', 'localhost', 'root', 'password', '/var/run/mysqld/mysqld.sock')
 
   leads = []
-
-  while result_set.next do
-    lead = {}
-    lead[:variant] = result_set.getObject('variant_id')
-    lead[:ip_address] = result_set.getObject('submitter_ip')
-    lead[:page_uuid] = result_set.getObject('page_uuid')
-    lead[:date_submitted] = '' # result_set.getObject('date_submitted')
-    lead[:time_submitted] = '' # result_set.getObject('time_submitted')
-
-    form_data = JSON.parse(result_set.getObject('form_data'))
-    form_data.each { |k,v| lead[k.to_sym] = v }
-
-    leads.push(lead)
+  my.query("SELECT * from form_submissions where page_uuid = '#{page_id}'") do |result|
+    result.each_hash { |row| leads << row }
   end
 
   leads
@@ -43,7 +22,7 @@ end
 
 def leads_headers(leads)
   header_mess = leads.collect { |lead| lead.keys }.flatten.uniq
-  [:page_uuid, :date_submitted, :time_submitted, :variant, :ip_address].concat(header_mess).uniq
+  ['page_uuid', 'date_submitted', 'time_submitted', 'variant', 'ip_address'].concat(header_mess).uniq
 end
 
 def lead_data_in_order(headers, lead)
