@@ -1,0 +1,29 @@
+= JDBC Wrapper (for JRuby)
+
+== Minimum Requirements
+
+* Java 1.5
+* JRuby 1.1 (tested with RC2)
+* JDBC Drivers
+
+== How to Install
+
+* gem install jdbc-wrapper
+* get your jdbc driver jars on your classpath
+  (the easier way to do this is drop them in $JRUBY_HOME/lib)
+
+== How to Use
+
+  require 'rubygems'
+  require 'jdbc'
+
+  JDBC::DB.start(:h2_mem,nil,nil,nil,nil,'foo') do |db|
+    db.query("CREATE TABLE records (name VARCHAR(80))")
+
+    db.query("INSERT INTO records (name) VALUES ('foo')")
+
+    db.query("SELECT * FROM records").each_hash do |row|
+      row.each { |key, value| puts "#{key} = #{value}" }
+    end
+  end
+
